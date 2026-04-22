@@ -1,0 +1,377 @@
+import { useCallback, useEffect, useState } from 'react'
+import {
+  createInitialBoard,
+  checkWinner,
+  applyMove,
+  getValidMoves,
+  getValidMovesForPiece,
+  getComputerMove,
+  type Board,
+  type Difficulty,
+  type Mode,
+  type Move,
+  type Player,
+} from './gameLogic'
+import { Board as GameBoard } from './components/Board'
+import { ModeSelector } from './components/ModeSelector'
+import { Header } from './components/Header'
+import './App.css'
+import './components/GameStatus.css'
+
+type Phase = 'setup' | 'playing' | 'over'
+type Theme = 'dark' | 'light'
+
+const SAVE_KEY = 'checkers_state'
+
+type SavedState = {
+  board: Board
+  currentTurn: Player
+  mode: Mode
+  difficulty: Difficulty
+  playerSide: Player
+}
+
+type GameOverReason =
+  | { type: 'all-pieces-captured'; player: Player }
+  | { type: 'no-valid-moves'; player: Player }
+  | null
+
+function loadSavedGame(): SavedState | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as SavedState
+  } catch {
+    return null
+  }
+}
+
+function HelpModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <h2 className="modal-title">How to Play</h2>
+        <div className="modal-content">
+          <h3>Objective</h3>
+          <p>Capture all of your opponent's pieces, or leave them with no valid moves.</p>
+          <h3>Rules</h3>
+          <ul>
+            <li>Light moves first. Players alternate turns.</li>
+            <li>Pieces move diagonally forward one square at a time.</li>
+            <li>Capture by jumping over an opponent's piece into the empty square behind it.</li>
+            <li>If a jump is available you must take it. Chain jumps are required when possible.</li>
+            <li>Reach your opponent's back row to become a King. Kings can move and capture in any diagonal direction.</li>
+          </ul>
+        </div>
+        <div className="modal-actions">
+          <button className="primary-btn" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GameOverModal({ winner, reason, onPlayAgain }: { winner: Player; reason: GameOverReason; onPlayAgain: () => void }) {
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card" style={{ textAlign: 'center' }}>
+        <h2 className={`modal-title game-status__message--${winner.toLowerCase()}`}>{winner} wins!</h2>
+        {reason?.type === 'all-pieces-captured' && (
+          <p>All {reason.player} pieces captured</p>
+        )}
+        {reason?.type === 'no-valid-moves' && (
+          <p>No valid moves for {reason.player}</p>
+        )}
+        <div className="modal-actions" style={{ justifyContent: 'center' }}>
+          <button className="primary-btn" onClick={onPlayAgain}>Play Again</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuitModal({ onCancel, onQuit }: { onCancel: () => void; onQuit: () => void }) {
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="modal-card" onClick={e => e.stopPropagation()}>
+        <h2 className="modal-title">Quit Game</h2>
+        <div className="modal-content">
+          <p>Return to the main menu? You can resume your game from there.</p>
+        </div>
+        <div className="modal-actions">
+          <button className="secondary-btn" onClick={onCancel}>Cancel</button>
+          <button className="primary-btn" onClick={onQuit}>Quit</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function App() {
+  const [phase, setPhase] = useState<Phase>('setup')
+  const [board, setBoard] = useState<Board>(createInitialBoard())
+  const [currentTurn, setCurrentTurn] = useState<Player>('Light')
+  const [mode, setMode] = useState<Mode>('vs-player')
+  const [difficulty, setDifficulty] = useState<Difficulty>('easy')
+  const [playerSide, setPlayerSide] = useState<Player>('Light')
+  const [winner, setWinner] = useState<Player | null>(null)
+  const [gameOverReason, setGameOverReason] = useState<GameOverReason>(null)
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [validMovesForSelected, setValidMovesForSelected] = useState<Move[]>([])
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('checkers_theme') as Theme) || 'dark'
+  )
+  const [showHelp, setShowHelp] = useState(false)
+  const [showQuitConfirm, setShowQuitConfirm] = useState(false)
+  const [hasSavedGame, setHasSavedGame] = useState(() => loadSavedGame() !== null)
+  const [winsNormal, setWinsNormal] = useState(
+    () => parseInt(localStorage.getItem('checkers_wins_normal') || '0')
+  )
+  const [winsHard, setWinsHard] = useState(
+    () => parseInt(localStorage.getItem('checkers_wins_hard') || '0')
+  )
+
+  useEffect(() => {
+    document.body.classList.remove('dark-palette', 'light-palette')
+    document.body.classList.add(theme === 'light' ? 'light-palette' : 'dark-palette')
+    localStorage.setItem('checkers_theme', theme)
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme(t => (t === 'dark' ? 'light' : 'dark'))
+  }
+
+  const saveGame = useCallback((b: Board, turn: Player, m: Mode, diff: Difficulty, side: Player) => {
+    const state: SavedState = { board: b, currentTurn: turn, mode: m, difficulty: diff, playerSide: side }
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+    setHasSavedGame(true)
+  }, [])
+
+  const clearSavedGame = useCallback(() => {
+    localStorage.removeItem(SAVE_KEY)
+    setHasSavedGame(false)
+  }, [])
+
+  function startGame(selectedMode: Mode, selectedDifficulty: Difficulty, selectedSide: Player) {
+    clearSavedGame()
+    setMode(selectedMode)
+    setDifficulty(selectedDifficulty)
+    setPlayerSide(selectedSide)
+    setBoard(createInitialBoard())
+    setCurrentTurn('Light')
+    setWinner(null)
+    setGameOverReason(null)
+    setSelectedIndex(null)
+    setValidMovesForSelected([])
+    setPhase('playing')
+  }
+
+  function resumeGame() {
+    const saved = loadSavedGame()
+    if (!saved) return
+    setBoard(saved.board)
+    setCurrentTurn(saved.currentTurn)
+    setMode(saved.mode)
+    setDifficulty(saved.difficulty)
+    setPlayerSide(saved.playerSide)
+    setWinner(null)
+    setGameOverReason(null)
+    setSelectedIndex(null)
+    setValidMovesForSelected([])
+    setPhase('playing')
+  }
+
+  function handleBack() {
+    if (phase === 'playing') {
+      setShowQuitConfirm(true)
+    } else {
+      setPhase('setup')
+    }
+  }
+
+  function handleQuit() {
+    setShowQuitConfirm(false)
+    setPhase('setup')
+  }
+
+  const executeMove = useCallback((b: Board, move: Move, player: Player) => {
+    const newBoard = applyMove(b, move)
+    const nextPlayer: Player = player === 'Light' ? 'Dark' : 'Light'
+    const win = checkWinner(newBoard, nextPlayer)
+    const nextPlayerHasPieces = newBoard.some(piece => piece?.player === nextPlayer)
+    const nextPlayerMoves = getValidMoves(newBoard, nextPlayer)
+    setBoard(newBoard)
+    setSelectedIndex(null)
+    setValidMovesForSelected([])
+    if (win) {
+      setWinner(win)
+      if (!nextPlayerHasPieces) {
+        setGameOverReason({ type: 'all-pieces-captured', player: nextPlayer })
+      } else if (nextPlayerMoves.length === 0) {
+        setGameOverReason({ type: 'no-valid-moves', player: nextPlayer })
+      } else {
+        setGameOverReason(null)
+      }
+      setPhase('over')
+      clearSavedGame()
+      if (mode === 'vs-computer' && win === playerSide) {
+        if (difficulty === 'hard') {
+          const next = winsHard + 1
+          setWinsHard(next)
+          localStorage.setItem('checkers_wins_hard', String(next))
+        } else {
+          const next = winsNormal + 1
+          setWinsNormal(next)
+          localStorage.setItem('checkers_wins_normal', String(next))
+        }
+      }
+    } else {
+      setGameOverReason(null)
+      setCurrentTurn(nextPlayer)
+      saveGame(newBoard, nextPlayer, mode, difficulty, playerSide)
+    }
+  }, [clearSavedGame, difficulty, mode, playerSide, saveGame, winsHard, winsNormal])
+
+  function handleSquareClick(index: number) {
+    if (phase !== 'playing') return
+    if (mode === 'vs-computer' && currentTurn !== playerSide) return
+
+    if (selectedIndex !== null) {
+      const move = validMovesForSelected.find(m => m.to === index)
+      if (move) {
+        executeMove(board, move, currentTurn)
+        return
+      }
+    }
+
+    const piece = board[index]
+    if (!piece || piece.player !== currentTurn) {
+      setSelectedIndex(null)
+      setValidMovesForSelected([])
+      return
+    }
+
+    const moves = getValidMovesForPiece(board, index, currentTurn)
+    if (moves.length === 0) {
+      setSelectedIndex(null)
+      setValidMovesForSelected([])
+      return
+    }
+
+    setSelectedIndex(index)
+    setValidMovesForSelected(moves)
+  }
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+    if (mode !== 'vs-computer') return
+    if (currentTurn === playerSide) return
+
+    const timer = setTimeout(() => {
+      const move = getComputerMove(board, difficulty, currentTurn)
+      executeMove(board, move, currentTurn)
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [board, currentTurn, difficulty, executeMove, mode, phase, playerSide])
+
+  const isDisabled =
+    phase !== 'playing' || (mode === 'vs-computer' && currentTurn !== playerSide)
+
+  const validMoveDestinations = validMovesForSelected.map(m => m.to)
+  const intermediateSquares = [...new Set(validMovesForSelected.flatMap(m => {
+    if (m.captures.length <= 1) return []
+    const squares: number[] = []
+    let pos = m.from
+    for (let i = 0; i < m.captures.length - 1; i++) {
+      const land = 2 * m.captures[i] - pos
+      squares.push(land)
+      pos = land
+    }
+    return squares
+  }))]
+
+  const bgPieces = [
+    // scattered
+    { x: '10%', y: '6%',  king: false },
+    { x: '44%', y: '3%',  king: true  },
+    { x: '76%', y: '7%',  king: false },
+    { x: '18%', y: '24%', king: false },
+    { x: '56%', y: '20%', king: true  },
+    { x: '22%', y: '84%', king: false },
+    { x: '50%', y: '91%', king: false },
+    // pair — left mid
+    { x: '4%',  y: '52%', king: false },
+    { x: '9%',  y: '61%', king: true  },
+    // pair — bottom right
+    { x: '80%', y: '74%', king: false },
+    { x: '85%', y: '83%', king: false },
+    // trio — right side diagonal
+    { x: '84%', y: '38%', king: false },
+    { x: '89%', y: '47%', king: true  },
+    { x: '84%', y: '56%', king: false },
+    // trio — lower left diagonal
+    { x: '8%',  y: '74%', king: false },
+    { x: '13%', y: '83%', king: false },
+    { x: '18%', y: '74%', king: true  },
+  ]
+
+  return (
+    <div className="app">
+      <div className="bg-pieces" aria-hidden="true">
+        {bgPieces.map((p, i) => (
+          <div key={i} className="bg-piece" style={{ left: p.x, top: p.y }}>
+            {p.king && <span className="bg-piece__star">★</span>}
+          </div>
+        ))}
+      </div>
+      <div className="game-card">
+        <Header
+          showBack={phase !== 'setup'}
+          onBack={handleBack}
+          theme={theme}
+          onThemeToggle={toggleTheme}
+          onHelp={() => setShowHelp(true)}
+          statusText={phase === 'playing' ? `${currentTurn}'s turn` : undefined}
+          statusClass={phase === 'playing' ? `game-status__turn--${currentTurn.toLowerCase()}` : undefined}
+        />
+        <div className="game-card__body">
+          {phase === 'setup' && (
+            <>
+              <div className="game-card__title-section">
+                <h1 className="game-title">Checkers</h1>
+                <p className="game-subtitle">A CLASSIC BOARD GAME</p>
+              </div>
+              <ModeSelector
+                onStart={startGame}
+                onResume={resumeGame}
+                hasSavedGame={hasSavedGame}
+                winsNormal={winsNormal}
+                winsHard={winsHard}
+              />
+            </>
+          )}
+          {phase !== 'setup' && (
+            <>
+              <GameBoard
+                board={board}
+                selectedIndex={selectedIndex}
+                validMoveDestinations={validMoveDestinations}
+                jumpDestinations={intermediateSquares}
+                currentTurn={currentTurn}
+                onSquareClick={handleSquareClick}
+                disabled={isDisabled}
+              />
+            </>
+          )}
+
+        </div>
+      </div>
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showQuitConfirm && <QuitModal onCancel={() => setShowQuitConfirm(false)} onQuit={handleQuit} />}
+      {phase === 'over' && winner && <GameOverModal winner={winner} reason={gameOverReason} onPlayAgain={handleBack} />}
+    </div>
+  )
+}
+
+export default App
