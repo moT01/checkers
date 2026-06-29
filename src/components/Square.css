@@ -5,6 +5,10 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  border: none;
+  padding: 0;
+  background: none;
+  font: inherit;
 }
 
 .square--light {

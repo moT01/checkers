@@ -126,6 +126,14 @@
   padding: var(--space-5);
 }
 
+dialog.modal-card {
+  color: inherit;
+}
+
+dialog.modal-card::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
 .modal-card {
   background: var(--color-surface);
   border: var(--border-default);
@@ -209,6 +217,11 @@
   transform: scale(0.97);
 }
 
+.primary-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--blue-mid);
+}
+
 .secondary-btn {
   display: inline-flex;
   align-items: center;
@@ -228,4 +241,9 @@
 .secondary-btn:hover {
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
+}
+
+.secondary-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--blue-mid);
 }

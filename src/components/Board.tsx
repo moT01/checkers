@@ -20,10 +20,12 @@ export function Board({ board, selectedIndex, validMoveDestinations, jumpDestina
 
   return (
     <div className={`board${disabled ? ' board--disabled' : ''} board--turn-${currentTurn.toLowerCase()}`}>
-      {indices.map(index => {
+      {indices.map((index, visualPos) => {
         const row = Math.floor(index / 8)
         const col = index % 8
         const isDark = (row + col) % 2 === 1
+        const visualRow = Math.floor(visualPos / 8) + 1
+        const visualCol = (visualPos % 8) + 1
         return (
           <Square
             key={index}
@@ -33,7 +35,8 @@ export function Board({ board, selectedIndex, validMoveDestinations, jumpDestina
             isValidDestination={validMoveDestinations.includes(index)}
             isJumpDestination={jumpDestinations.includes(index)}
             onClick={() => onSquareClick(index)}
-            disabled={disabled}
+            row={visualRow}
+            col={visualCol}
           />
         )
       })}

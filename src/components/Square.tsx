@@ -9,12 +9,11 @@ interface Props {
   isValidDestination: boolean
   isJumpDestination: boolean
   onClick: () => void
-  disabled: boolean
+  row: number
+  col: number
 }
 
-export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, disabled }: Props) {
-  const isInteractable = isDark && !disabled
-
+export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, row, col }: Props) {
   const classes = [
     'square',
     isDark ? 'square--dark' : 'square--light',
@@ -22,14 +21,28 @@ export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDe
     isValidDestination ? 'square--valid-destination' : '',
   ].filter(Boolean).join(' ')
 
+  if (!isDark) {
+    return <div className={classes} />
+  }
+
+  const pieceDesc = piece
+    ? `${piece.player} ${piece.type === 'king' ? 'King' : 'piece'}`
+    : ''
+  const selectedHint = isSelected ? ', selected' : ''
+  const moveHint = isValidDestination ? ', valid move' : ''
+  const label = pieceDesc
+    ? `Row ${row}, Column ${col}, ${pieceDesc}${selectedHint}${moveHint}`
+    : `Row ${row}, Column ${col}${moveHint}`
+
   return (
-    <div
+    <button
       className={classes}
-      onClick={isInteractable ? onClick : undefined}
+      onClick={onClick}
+      aria-label={label}
     >
       {piece && <Piece piece={piece} />}
       {isValidDestination && <div className="square__highlight" />}
       {isJumpDestination && <div className="square__capture-ring" />}
-    </div>
+    </button>
   )
 }
