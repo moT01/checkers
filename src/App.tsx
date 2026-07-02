@@ -389,6 +389,8 @@ function App() {
                 onSquareClick={handleSquareClick}
                 disabled={isDisabled}
                 flipped={mode === 'vs-computer' && playerSide === 'Dark'}
+                mode={mode}
+                playerSide={playerSide}
               />
             </>
           )}

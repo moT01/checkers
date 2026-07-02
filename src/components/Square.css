@@ -21,6 +21,11 @@
   transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.square--dark:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--blue-mid);
+}
+
 .square--dark:hover:not(.square--selected):not(.square--valid-destination) {
   background-color: var(--board-hover);
 }

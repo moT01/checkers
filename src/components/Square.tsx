@@ -1,4 +1,4 @@
-import type { Piece as PieceType } from '../gameLogic'
+import type { Piece as PieceType, Player } from '../gameLogic'
 import { Piece } from './Piece'
 import './Square.css'
 
@@ -11,9 +11,10 @@ interface Props {
   onClick: () => void
   row: number
   col: number
+  getPlayerLabel: (player: Player) => string
 }
 
-export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, row, col }: Props) {
+export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, row, col, getPlayerLabel }: Props) {
   const classes = [
     'square',
     isDark ? 'square--dark' : 'square--light',
@@ -26,7 +27,7 @@ export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDe
   }
 
   const pieceDesc = piece
-    ? `${piece.player} ${piece.type === 'king' ? 'King' : 'piece'}`
+    ? `${getPlayerLabel(piece.player)} ${piece.type === 'king' ? 'King' : 'piece'}`
     : ''
   const selectedHint = isSelected ? ', selected' : ''
   const moveHint = isValidDestination ? ', valid move' : ''
