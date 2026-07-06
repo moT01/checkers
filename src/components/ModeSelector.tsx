@@ -25,6 +25,18 @@ export function ModeSelector({ onStart, onResume, hasSavedGame, wins }: Props) {
     }
   }
 
+  function handlePillKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const radios = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]'))
+    const currentIndex = radios.findIndex(r => r === document.activeElement)
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault()
+      const dir = e.key === 'ArrowRight' ? 1 : -1
+      const next = radios[(currentIndex + dir + radios.length) % radios.length]
+      next.focus()
+      setPlayerSide(next.dataset.side as Player)
+    }
+  }
+
   return (
     <div className="home-body">
       <div role="tablist" className="mode-tabs" onKeyDown={handleTabKeyDown}>
@@ -61,18 +73,24 @@ export function ModeSelector({ onStart, onResume, hasSavedGame, wins }: Props) {
               <span className="wins-row-label">Wins</span>
               <span className="wins-num">{wins}</span>
             </div>
-            <div className="pill-toggle">
+            <div role="radiogroup" aria-label="Turn order" className="pill-toggle" onKeyDown={handlePillKeyDown}>
               <button
+                role="radio"
+                aria-checked={playerSide === 'Light'}
+                tabIndex={playerSide === 'Light' ? 0 : -1}
                 className={`pill-btn${playerSide === 'Light' ? ' pill-btn--active' : ''}`}
-                aria-pressed={playerSide === 'Light'}
                 onClick={() => setPlayerSide('Light')}
+                data-side="Light"
               >
                 Go First
               </button>
               <button
+                role="radio"
+                aria-checked={playerSide === 'Dark'}
+                tabIndex={playerSide === 'Dark' ? 0 : -1}
                 className={`pill-btn${playerSide === 'Dark' ? ' pill-btn--active' : ''}`}
-                aria-pressed={playerSide === 'Dark'}
                 onClick={() => setPlayerSide('Dark')}
+                data-side="Dark"
               >
                 Go Second
               </button>

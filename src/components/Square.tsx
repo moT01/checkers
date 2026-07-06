@@ -12,9 +12,12 @@ interface Props {
   row: number
   col: number
   getPlayerLabel: (player: Player) => string
+  boardIndex: number
+  tabIndex: number
+  onFocus: () => void
 }
 
-export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, row, col, getPlayerLabel }: Props) {
+export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDestination, onClick, row, col, getPlayerLabel, boardIndex, tabIndex, onFocus }: Props) {
   const classes = [
     'square',
     isDark ? 'square--dark' : 'square--light',
@@ -40,6 +43,9 @@ export function Square({ piece, isDark, isSelected, isValidDestination, isJumpDe
       className={classes}
       onClick={onClick}
       aria-label={label}
+      data-board-index={boardIndex}
+      tabIndex={tabIndex}
+      onFocus={onFocus}
     >
       {piece && <Piece piece={piece} />}
       {isValidDestination && <div className="square__highlight" />}
