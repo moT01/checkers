@@ -7,7 +7,7 @@
   --board-frame: #0d0c22;
   --board-border: #020212;
   --board-selected: rgba(255, 191, 0, 0.18);
-  --cell-size: min(72px, calc((100vw - 72px) / 8));
+  --cell-size: min(88px, calc((100vw - 72px) / 8));
 }
 
 .light-palette {
@@ -31,8 +31,8 @@
 
 .bg-piece {
   position: absolute;
-  width: 62px;
-  height: 62px;
+  width: 76px;
+  height: 76px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.03);
   border: 2px solid rgba(255, 255, 255, 0.05);
